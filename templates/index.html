@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gesture Remote</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 60px auto;
+            padding: 0 20px;
+            background: #14202b;
+            color: #eef5fa;
+        }
+
+        .card {
+            background: #233647;
+            padding: 24px;
+            margin: 16px 0;
+            border-radius: 12px;
+        }
+
+        strong {
+            color: #79e0c3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gesture Remote</h1>
+    <p id="status">Connecting to dashboard server…</p>
+
+    <div class="card">
+        Messages received: <strong id="count">0</strong>
+    </div>
+
+    <div class="card">
+        Last device: <strong id="device">None yet</strong>
+    </div>
+
+    <div class="card">
+        Last gesture: <strong id="gesture">None yet</strong>
+    </div>
+
+    <div class="card">
+        Mqtt connection status: <strong id="mqtt">Checking...</strong>
+    </div>
+
+    <script>
+        async function updateDashboard() {
+            try {
+                const response = await fetch("/api/state");
+
+                if (!response.ok) {
+                    throw new Error("Request failed");
+                }
+
+                const data = await response.json();
+                const mqttSatus = document.getElementById("mqtt");
+
+                mqttSatus.textContent = data.mqtt_connected ? "Connected" : "Disconnected";
+                mqttStatus.style.color = data.mqtt_connected ? "#79e0c3" : "#ff8a80";
+
+                document.getElementById("count").textContent =
+                    data.message_count;
+
+                document.getElementById("device").textContent =
+                    data.last_device ?? "None yet";
+
+                document.getElementById("gesture").textContent =
+                    data.last_gesture ?? "None yet";
+
+                document.getElementById("status").textContent =
+                    "Dashboard server connected";
+            } catch (error) {
+                document.getElementById("status").textContent =
+                    "Cannot reach dashboard server";
+                document.getElementById("mqtt").textContent = "Unknown";
+                document.getElementById("mqtt").style.color = "#ffcc80"
+            }
+        }
+
+        updateDashboard();
+        setInterval(updateDashboard, 1000);
+    </script>
+</body>
+</html>
