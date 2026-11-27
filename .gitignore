@@ -10,3 +10,5 @@ firmware/**/build/
 firmware/**/sdkconfig
 firmware/**/sdkconfig.old
 *.log
+README.md
+PROJECT_DECISIONS.md

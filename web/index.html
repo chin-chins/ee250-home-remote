@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gesture Remote · Day One</title>
+    <style>
+        /* Page layout */
+        body {
+            font: 16px system-ui;
+            background: #101b26;
+            color: #e5edf5;
+            max-width: 900px;
+            margin: 60px auto;
+            padding: 0 24px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 16px;
+        }
+
+        section {
+            background: #1a2b3b;
+            border: 1px solid #345067;
+            padding: 24px;
+            margin-top: 16px;
+            border-radius: 16px;
+        }
+
+        /* Text */
+        h1 {
+            font-size: 42px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            color: #afc2d4;
+            line-height: 1.6;
+        }
+
+        .tag {
+            color: #68e0c2;
+            letter-spacing: 2px;
+            font-size: 12px;
+        }
+
+        strong {
+            font-size: 28px;
+            display: block;
+            margin-top: 12px;
+        }
+
+        small {
+            color: #afc2d4;
+        }
+
+        footer {
+            margin-top: 32px;
+            color: #afc2d4;
+        }
+
+        /* Controls and feedback */
+        button {
+            background: #68e0c2;
+            color: #10251f;
+            border: 0;
+            border-radius: 8px;
+            padding: 14px 18px;
+            font: inherit;
+            cursor: pointer;
+            margin: 6px 4px 6px 0;
+        }
+
+        #error {
+            color: #ffb1a4;
+        }
+    </style>
+</head>
+<body>
+    <div class="tag">EE250 / DAY ONE</div>
+    <h1>Gesture remote</h1>
+    <p>Test the controls and check incoming motion data.</p>
+    <!-- Connection and incoming motion -->
+    <div class="grid">
+        <section>
+            Active mode
+            <strong id="mode">—</strong>
+        </section>
+        <section>
+            MQTT broker
+            <strong id="broker">Connecting…</strong>
+        </section>
+        <section>
+            Motion windows
+            <strong id="windows">0</strong>
+            <small id="motion">No samples received</small>
+        </section>
+    </div>
+
+    <section>
+        Recording
+        <strong id="recording_state">Waiting for data</strong>
+        <small id="recording_count">0 windows saved this run</small>
+    </section>
+
+    <!-- Manual controls -->
+    <h2>Manual gesture tests</h2>
+    <p>These buttons update software demo state. Gesture recognition, audio playback, and physical LED control are not connected yet.</p>
+    <div>
+        <button data-gesture="switch_mode">Switch mode</button>
+        <button data-gesture="increase">Increase +10</button>
+        <button data-gesture="decrease">Decrease −10</button>
+        <button data-gesture="toggle">Toggle</button>
+    </div>
+    <p id="error" role="alert"></p>
+
+    <!-- Output state -->
+    <div class="grid">
+        <section>
+            Music · demo state
+            <strong id="music">—</strong>
+        </section>
+        <section>
+            Light · requested demo state
+            <strong id="light">—</strong>
+            <small>Hardware state unverified</small>
+        </section>
+    </div>
+    <footer id="last">No gesture tested yet</footer>
+    <script>
+        // Fetch the server state and update the dashboard.
+        async function refresh() {
+            try {
+                const response = await fetch('/api/state');
+                if (!response.ok) {
+                    throw Error('Dashboard unavailable');
+                }
+
+                const state = await response.json();
+
+                document.querySelector('#recording_state').textContent =
+                    state.recording_state;
+                document.querySelector('#recording_count').textContent =
+                    `${state.recorded_windows} windows saved this run`;
+
+                // Connection and incoming motion
+                document.querySelector('#mode').textContent = state.mode.toUpperCase();
+                document.querySelector('#broker').textContent =
+                    state.broker_connected ? 'Connected' : 'Disconnected';
+                document.querySelector('#windows').textContent = state.motion_windows;
+
+                if (state.last_motion_at) {
+                    const secondsAgo = Math.max(
+                        0,
+                        Math.round(Date.now() / 1000 - state.last_motion_at)
+                    );
+                    document.querySelector('#motion').textContent =
+                        `${state.last_device} · ${secondsAgo}s ago · ${state.invalid_messages} rejected`;
+                } else {
+                    document.querySelector('#motion').textContent = 
+                        `No valid samples received · ${state.invalid_messages} rejected`;
+                }
+
+                // Output state and latest manual action
+                document.querySelector('#music').textContent =
+                    `${state.playing ? 'Playing' : 'Paused'} · ${state.volume}%`;
+                document.querySelector('#light').textContent =
+                    `${state.light_on ? 'On' : 'Off'} · ${state.brightness}%`;
+                document.querySelector('#last').textContent = state.last_gesture
+                    ? `Last manual test: ${state.last_gesture}`
+                    : 'No gesture tested yet';
+                document.querySelector('#error').textContent = '';
+            } catch (error) {
+                document.querySelector('#error').textContent =
+                    'Cannot reach the server. Check that it is running.';
+                document.querySelector('#broker').textContent = 'Unknown';
+                document.querySelector('#recording_state').textContent =
+                    'Status unavailable';
+            }   
+        }
+        // Send the selected manual gesture to the server.
+        document.querySelectorAll('button').forEach((button) => {
+            button.onclick = async () => {
+                try {
+                    const response = await fetch('/api/action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gesture: button.dataset.gesture }),
+                    });
+
+                    if (!response.ok) {
+                        throw Error('Action failed');
+                    }
+
+                    await refresh();
+                } catch (error) {
+                    document.querySelector('#error').textContent = error.message;
+                }
+            };
+        });
+
+        // Load immediately, then refresh once per second.
+        refresh();
+        setInterval(refresh, 1000);
+    </script>
+</body>
+</html>

@@ -57,9 +57,9 @@
                 }
 
                 const data = await response.json();
-                const mqttSatus = document.getElementById("mqtt");
+                const mqttStatus = document.getElementById("mqtt");
 
-                mqttSatus.textContent = data.mqtt_connected ? "Connected" : "Disconnected";
+                mqttStatus.textContent = data.mqtt_connected ? "Connected" : "Disconnected";
                 mqttStatus.style.color = data.mqtt_connected ? "#79e0c3" : "#ff8a80";
 
                 document.getElementById("count").textContent =
